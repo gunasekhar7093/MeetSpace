@@ -24,14 +24,13 @@ bin/
 *.dylib
 
 # Local databases & data directories
-**/data/
-data/
 backend/data/
 backend/backend/
 *.wt
 *.lock
 diagnostic.data/
 journal/
+!MeetSpace/src/data/
 
 # Meeting recordings & media files
 recordings/
