@@ -1,158 +1,179 @@
-# MeetSpace — Production Deployment & Operations Guide
+# MeetSpace — Cloud Production Deployment Guide
 
-This guide details the deployment architecture, infrastructure requirements, security configuration, and operational procedures for hosting **MeetSpace** in a high-availability production environment.
+This guide details the deployment architecture, configuration requirements, security settings, and step-by-step procedures for deploying **MeetSpace** using modern cloud services:
+- **Frontend**: [Vercel](https://vercel.com/) (React + Vite Single Page Application)
+- **Backend**: [Render](https://render.com/) (Native Node.js Web Service)
+- **Database**: [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (Managed Cloud Database)
+- **Media Engine**: [LiveKit Cloud](https://livekit.io/cloud) (Managed WebRTC Selective Forwarding Unit)
+- **Recordings Storage**: Cloud Object Storage (AWS S3 or Cloudflare R2)
 
 ---
 
-## 1. Production Architecture Topology
+## 1. Cloud Architecture Topology
 
 ```mermaid
 flowchart TD
-    Client["User Browsers (WebRTC / HTTPS)"] -->|HTTPS / WSS| Ingress["Reverse Proxy (Nginx / Cloudflare / ALB)"]
+    Client["User Browser (WebRTC / Audio / Video / Screen)"]
 
-    subgraph AppServer["Application Infrastructure"]
-        Ingress -->|Static Bundle / HTTP| Frontend["MeetSpace React SPA (Nginx)"]
-        Ingress -->|REST API & /socket.io| Backend["MeetSpace Express API (:5000)"]
-        Backend -->|Mongoose TLS| DB[("MongoDB Atlas Replica Set")]
+    subgraph CDN["Edge & Frontend (Vercel)"]
+        Client -->|HTTPS (Static Bundle)| Vercel["MeetSpace React Client (*.vercel.app)"]
     end
 
-    subgraph MediaCluster["LiveKit Media Cluster"]
-        Client -->|WebSockets :7880| LiveKit["LiveKit SFU (:7880)"]
-        Client -->|RTP / UDP 50000-60000| LiveKit
-        LiveKit <-->|Signaling & State| Redis[("Redis 7 Cluster")]
-        Egress["LiveKit Egress Worker"] <-->|IPC / Redis| LiveKit
-        LiveKit -->|HMAC Webhooks| Backend
+    subgraph CloudBackend["API & Signaling (Render)"]
+        Client -->|REST API & /socket.io| RenderAPI["MeetSpace Express API (*.onrender.com)"]
+        RenderAPI -->|Mongoose TLS| Atlas[("MongoDB Atlas Database")]
     end
 
-    subgraph Storage["Object Storage"]
-        Egress -->|Direct MP4 Upload| S3[("AWS S3 / Cloudflare R2")]
-        Backend -->|Signed Playback & Downloads| S3
+    subgraph ManagedMedia["Media & WebRTC (LiveKit Cloud)"]
+        Client -->|WebRTC RTP / UDP Audio & Video| LKCloud["LiveKit Cloud SFU (wss://*.livekit.cloud)"]
+        RenderAPI -->|Token Generation & Egress REST API| LKCloud
+        LKCloud -->|HMAC Lifecycle Webhooks| RenderAPI
+    end
+
+    subgraph ObjectStorage["Recording Media Storage"]
+        LKCloud -->|Direct MP4 Composite Upload| S3Storage[("Cloudflare R2 / AWS S3")]
+        RenderAPI -->|Stream / Download Playback| S3Storage
     end
 ```
 
 ---
 
-## 2. Infrastructure Sizing & Firewall Requirements
+## 2. Platform Requirements & Configuration
 
-### Minimum Recommended Production Specs
+### A. Frontend: Vercel
 
-| Component | Minimum Specification | Recommended Production | Role |
-|-----------|----------------------|------------------------|------|
-| **Backend API** | 2 vCPU, 4GB RAM | 4 vCPU, 8GB RAM | REST API, Socket.IO, Auth, JWT |
-| **Frontend** | 1 vCPU, 1GB RAM | 2 vCPU, 2GB RAM | Nginx static asset serving & caching |
-| **LiveKit SFU** | 4 vCPU, 8GB RAM, 1Gbps NIC | 8 vCPU, 16GB RAM, 10Gbps NIC | WebRTC Selective Forwarding Unit |
-| **LiveKit Egress** | 4 vCPU, 8GB RAM | 8 vCPU, 16GB RAM | Headless Chromium & GStreamer composite |
-| **MongoDB** | Atlas M10 (2 vCPU, 2GB RAM) | Atlas M30 (4 vCPU, 8GB RAM) | Persistent metadata & participant presence |
-| **Redis** | 1 vCPU, 2GB RAM | 2 vCPU, 4GB RAM | Pub/Sub signaling & room routing |
+| Setting | Value | Notes |
+| :--- | :--- | :--- |
+| **Framework Preset** | `Vite` | Auto-detected |
+| **Root Directory** | `MeetSpace` | Must be pointed to the frontend subfolder |
+| **Build Command** | `npm run build` | Bundles with Vite chunk splitting |
+| **Output Directory** | `dist` | Generated static bundle |
+| **Install Command** | `npm install` | Clean production dependency install |
 
-### Firewall & Port Ingress Matrix
-
-| Protocol | Port / Range | Source | Purpose |
-|----------|-------------|--------|---------|
-| **TCP** | `80`, `443` | `0.0.0.0/0` (Public) | HTTPS Web Client & REST API traffic |
-| **TCP** | `7880` | `0.0.0.0/0` (Public) | LiveKit SFU WebSocket signaling & HTTP API |
-| **TCP** | `7881` | `0.0.0.0/0` (Public) | WebRTC TCP fallback (firewalled corporate clients) |
-| **UDP** | `7882` | `0.0.0.0/0` (Public) | WebRTC UDP multiplexed traffic |
-| **UDP** | `50000–60000` | `0.0.0.0/0` (Public) | WebRTC ICE / RTP audio & video media streams |
-| **TCP** | `6379` | Internal VPC only | Redis signaling coordination |
-| **TCP** | `27017` | Internal VPC / Atlas IP whitelist | MongoDB secure TLS connections |
+#### Frontend Environment Variables (Vercel Dashboard)
+- `VITE_API_BASE_URL`: URL to your Render backend API (e.g. `https://<service-name>.onrender.com/api`).
+- `VITE_SOCKET_URL`: URL to your Render backend origin (e.g. `https://<service-name>.onrender.com`).
+- `VITE_STUN_SERVER_URL`: `stun:stun.l.google.com:19302`
 
 ---
 
-## 3. Step-by-Step Production Deployment
+### B. Backend: Render
 
-### Step 1: Environment Variables Setup
-Create `backend/.env` with production-grade secrets:
-```bash
-NODE_ENV=production
-PORT=5000
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/meetspace_prod?retryWrites=true&w=majority
-JWT_ACCESS_SECRET=<generated-64-character-random-hex-string>
-JWT_REFRESH_SECRET=<generated-64-character-random-hex-string>
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
-FRONTEND_URL=https://meetspace.yourdomain.com
-LIVEKIT_URL=wss://livekit.yourdomain.com
-LIVEKIT_API_KEY=<secure-livekit-production-key>
-LIVEKIT_API_SECRET=<secure-livekit-production-secret-64-chars>
-MOCK_EGRESS=false
-EGRESS_STORAGE_TYPE=s3
-EGRESS_S3_KEY=<aws-access-key-id>
-EGRESS_S3_SECRET=<aws-secret-access-key>
-EGRESS_S3_BUCKET=meetspace-recordings-production
-EGRESS_S3_REGION=us-east-1
-```
+| Setting | Value | Notes |
+| :--- | :--- | :--- |
+| **Service Type** | **Web Service** | Do *not* select Static Site or Background Worker |
+| **Runtime** | `Node` | Native Node.js execution (no Docker required) |
+| **Root Directory** | `backend` | Must be pointed to the backend subfolder |
+| **Build Command** | `npm install` (or `npm ci --omit=dev`) | Installs backend dependencies |
+| **Start Command** | `npm start` | Runs `node src/server.js` |
+| **Health Check Path**| `/api/health` | Render verifies this endpoint during deployment |
 
-> **Security Rule**: `validateRequiredEnv()` automatically aborts startup if `MOCK_EGRESS=true`, if development keys (`devkey`, `secret`) are supplied, or if JWT secrets are shorter than 32 characters.
-
-### Step 2: LiveKit SFU Configuration (`livekit.prod.yaml`)
-Ensure `external_ip` is configured with the public IPv4 of the media node:
-```yaml
-port: 7880
-rtc:
-  udp_port: 7882
-  tcp_port: 7881
-  port_range_start: 50000
-  port_range_end: 60000
-  use_external_ip: true
-keys:
-  <LIVEKIT_API_KEY>: "<LIVEKIT_API_SECRET>"
-redis:
-  address: "redis:6379"
-webhook:
-  api_key: "<LIVEKIT_API_KEY>"
-  urls:
-    - "http://backend:5000/api/livekit/webhooks"
-```
-
-### Step 3: Deploying with Docker Compose
-```bash
-# Build and start all services in detached mode
-docker compose -f docker-compose.prod.yml up -d --build
-
-# Verify container health
-docker compose -f docker-compose.prod.yml ps
-```
+#### Backend Environment Variables (Render Dashboard)
+- `NODE_ENV`: `production`
+- `PORT`: (Auto-assigned by Render, defaults to 10000)
+- `FRONTEND_URL`: Canonical Vercel domain without trailing slash (e.g. `https://<your-project>.vercel.app`).
+- `MONGODB_URI`: Secure MongoDB Atlas connection URI with TLS enabled.
+- `JWT_ACCESS_SECRET`: Cryptographically random 64-character string (at least 32 characters).
+- `JWT_REFRESH_SECRET`: Cryptographically random 64-character string (distinct from access secret).
+- `JWT_ACCESS_EXPIRES_IN`: `15m`
+- `JWT_REFRESH_EXPIRES_IN`: `7d`
+- `LIVEKIT_URL`: LiveKit Cloud WebSocket URL (`wss://<project-subdomain>.livekit.cloud`).
+- `LIVEKIT_API_KEY`: API Key from LiveKit Cloud dashboard.
+- `LIVEKIT_API_SECRET`: API Secret from LiveKit Cloud dashboard.
+- `MOCK_EGRESS`: `false` (mock egress is rejected at startup in production mode).
+- `EGRESS_STORAGE_TYPE`: `s3` (for cloud storage) or `local`.
+- `EGRESS_S3_KEY`: S3 / R2 Access Key ID.
+- `EGRESS_S3_SECRET`: S3 / R2 Secret Access Key.
+- `EGRESS_S3_BUCKET`: Recording bucket name.
+- `EGRESS_S3_REGION`: Storage region (e.g., `us-east-1` or `auto` for Cloudflare R2).
+- `EGRESS_S3_ENDPOINT`: (Optional) Custom S3 endpoint for Cloudflare R2 or MinIO.
 
 ---
 
-## 4. LiveKit Egress Worker Production Considerations
-
-LiveKit Egress renders meeting room video layouts using a headless Linux container containing Chromium, PulseAudio, and GStreamer.
-
-1. **Hardware Allocation**:
-   - Each active room composite recording consumes **2 to 3 CPU cores** and **2.5GB to 3GB RAM**.
-   - If recording 5 concurrent meetings, provision an instance with at least **16 vCPUs and 32GB RAM**.
-2. **Direct Cloud Storage Upload**:
-   - Avoid storing recordings on local ephemeral container volumes in production.
-   - Configure AWS S3 bucket with Lifecycle Policies (e.g., transition MP4s to S3 Glacier Flexible Retrieval after 90 days).
-3. **Webhook Verification**:
-   - MeetSpace's `/api/livekit/webhooks` endpoint authenticates every inbound LiveKit lifecycle event via SHA-256 HMAC signature verification (`WebhookReceiver`).
-   - The webhook updates database status to `completed` and records `duration` and `fileSize` only after Egress finalizes file transmission.
-
----
-
-## 5. Reliability, Backups & Disaster Recovery
-
-### MongoDB Database Backups
-- Enable continuous automated point-in-time restore (PITR) in MongoDB Atlas.
-- For self-hosted instances, schedule hourly automated dumps:
-  ```bash
-  mongodump --uri="$MONGODB_URI" --gzip --archive=/backups/meetspace_$(date +%Y%m%d_%H%M%S).gz
+### C. Database: MongoDB Atlas
+- **Tier**: M0 Free Sandbox (or M10+ dedicated cluster for high production traffic).
+- **Network Access**: Add `0.0.0.0/0` ("Allow Access from Anywhere") because Render Web Services use dynamic outbound IP addresses.
+- **Connection URI Format**:
+  ```text
+  mongodb+srv://<username>:<password>@<cluster>.mongodb.net/meetspace_prod?retryWrites=true&w=majority
   ```
 
-### Health Probes & Monitoring
-MeetSpace exposes standardized health probes for Kubernetes and cloud load balancers:
-- **Liveness Probe**: `GET /api/health/live` (Returns HTTP 200 if Node.js process is active).
-- **Readiness Probe**: `GET /api/health/ready` (Returns HTTP 200 if MongoDB is connected; returns HTTP 503 if database connection is down).
-- **Service Summary**: `GET /api/health` (Uptime and service status).
+---
+
+### D. Media Engine: LiveKit Cloud
+- **Project Setup**: Create a free project at [livekit.io/cloud](https://livekit.io/cloud).
+- **Edge Routing & TURN**: LiveKit Cloud automatically provisions global edge nodes, TURN servers, UDP port 7882, and TCP fallback port 7881. No firewall or NAT configuration is required.
+- **Webhooks**: Register your Render backend webhook URL in the LiveKit Cloud dashboard:
+  ```text
+  https://<service-name>.onrender.com/api/livekit/webhooks
+  ```
 
 ---
 
-## 6. Scaling Constraints & Capacity Guidelines
+## 3. Step-by-Step Deployment Walkthrough
 
-1. **Meeting Size**:
-   - LiveKit SFU comfortably supports 50-100 participants per room with adaptive simulcast.
-   - For larger broadcast rooms (100-500 participants), configure LiveKit with `dynacast: true` and publish lower-resolution video tracks (360p / 180p) to inactive grid tiles.
-2. **Socket.IO Scalability**:
-   - When running multiple backend API instances behind a load balancer, configure the `@socket.io/redis-adapter` so Socket.IO events broadcast seamlessly across all backend instances.
+### Step 1: MongoDB Atlas Setup
+1. Log in to [MongoDB Atlas](https://cloud.mongodb.com/) and create a cluster.
+2. In **Database Access**, create a user with `readWrite` permissions.
+3. In **Network Access**, add `0.0.0.0/0`.
+4. Copy your SRV connection string for use in Step 3.
+
+### Step 2: LiveKit Cloud Setup
+1. Log in to [LiveKit Cloud](https://cloud.livekit.io/) and create a new project.
+2. In Project Settings, copy:
+   - WebSocket URL (`wss://...livekit.cloud`)
+   - API Key
+   - API Secret
+
+### Step 3: Render Backend Deployment
+1. Log in to [Render](https://dashboard.render.com/) and click **New + -> Web Service**.
+2. Connect your GitHub repository (`gunasekhar7093/MeetSpace`).
+3. Configure the service settings:
+   - **Name**: `meetspace-backend`
+   - **Root Directory**: `backend`
+   - **Runtime**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+4. In the **Environment Variables** section, add all backend variables listed in Section 2B.
+5. In **Advanced Settings**, set **Health Check Path** to `/api/health`.
+6. Click **Create Web Service** and wait for the initial build to complete. Note your assigned URL (`https://<service-name>.onrender.com`).
+
+### Step 4: Configure LiveKit Webhooks
+1. Return to the LiveKit Cloud dashboard -> **Settings -> Webhooks**.
+2. Add a new webhook destination:
+   ```text
+   https://<service-name>.onrender.com/api/livekit/webhooks
+   ```
+3. Save the webhook configuration.
+
+### Step 5: Vercel Frontend Deployment
+1. Log in to [Vercel](https://vercel.com/) and click **Add New... -> Project**.
+2. Import the `gunasekhar7093/MeetSpace` repository.
+3. In Project Settings:
+   - **Root Directory**: Set to `MeetSpace`.
+   - **Framework Preset**: `Vite`.
+4. In **Environment Variables**, add:
+   - `VITE_API_BASE_URL`: `https://<service-name>.onrender.com/api`
+   - `VITE_SOCKET_URL`: `https://<service-name>.onrender.com`
+   - `VITE_STUN_SERVER_URL`: `stun:stun.l.google.com:19302`
+5. Click **Deploy**. Note your assigned frontend URL (`https://<project-name>.vercel.app`).
+
+### Step 6: CORS & Cookie Synchronization
+1. Return to the Render dashboard -> `meetspace-backend` -> **Environment**.
+2. Update `FRONTEND_URL` to your exact Vercel production URL:
+   ```text
+   FRONTEND_URL=https://<project-name>.vercel.app
+   ```
+3. Save changes. Render will automatically redeploy the service with the updated CORS origin policy.
+
+---
+
+## 4. Health Probes & Monitoring
+
+MeetSpace provides built-in endpoints for service uptime monitoring:
+- **Comprehensive Health Check**: `GET /api/health`
+  - Returns service status, uptime, and database connection state.
+- **Process Liveness Probe**: `GET /api/health/live`
+  - Returns HTTP 200 as long as the Express process is active.
+- **Database Readiness Probe**: `GET /api/health/ready`
+  - Returns HTTP 200 when MongoDB is connected; returns HTTP 503 if disconnected.
