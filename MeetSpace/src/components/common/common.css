@@ -1,0 +1,342 @@
+/* Buttons */
+.ms-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast),
+    color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.ms-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.ms-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ms-btn--sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.ms-btn--md {
+  padding: 9px 16px;
+  font-size: 14px;
+}
+
+.ms-btn--lg {
+  padding: 11px 22px;
+  font-size: 15px;
+}
+
+.ms-btn--full {
+  width: 100%;
+}
+
+.ms-btn--primary {
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+}
+
+.ms-btn--primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.ms-btn--secondary {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.ms-btn--secondary:hover:not(:disabled) {
+  background-color: #d2e3fc;
+}
+
+.ms-btn--outline {
+  background-color: var(--bg-surface);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.ms-btn--outline:hover:not(:disabled) {
+  background-color: var(--bg-surface-hover);
+}
+
+.ms-btn--ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+.ms-btn--ghost:hover:not(:disabled) {
+  background-color: var(--bg-surface-muted);
+  color: var(--text-primary);
+}
+
+.ms-btn--danger {
+  background-color: var(--color-danger);
+  color: var(--text-inverse);
+}
+
+.ms-btn--danger:hover:not(:disabled) {
+  background-color: var(--color-danger-hover);
+}
+
+/* Inputs */
+.ms-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.ms-field__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ms-field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ms-field__icon-left {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  display: flex;
+  pointer-events: none;
+}
+
+.ms-field__icon-right {
+  position: absolute;
+  right: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.ms-input,
+.ms-select,
+.ms-textarea {
+  width: 100%;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 10px 12px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ms-input--with-left {
+  padding-left: 38px;
+}
+
+.ms-input--with-right {
+  padding-right: 40px;
+}
+
+.ms-input:focus,
+.ms-select:focus,
+.ms-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-ring);
+}
+
+.ms-input--error {
+  border-color: var(--color-danger);
+}
+
+.ms-input--error:focus {
+  box-shadow: 0 0 0 3px rgba(217, 48, 37, 0.2);
+}
+
+.ms-field__error {
+  font-size: 12.5px;
+  color: var(--color-danger);
+  font-weight: 500;
+}
+
+.ms-field__helper {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Card */
+.ms-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.ms-card--padded {
+  padding: 24px;
+}
+
+/* Avatar */
+.ms-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: #ffffff;
+  font-weight: 600;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.ms-avatar--sm {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+}
+
+.ms-avatar--md {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+
+.ms-avatar--lg {
+  width: 56px;
+  height: 56px;
+  font-size: 18px;
+}
+
+.ms-avatar--xl {
+  width: 80px;
+  height: 80px;
+  font-size: 26px;
+}
+
+/* Modal */
+.ms-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.ms-modal {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.ms-modal--lg {
+  max-width: 680px;
+}
+
+.ms-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ms-modal__title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ms-modal__close {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: var(--radius-full);
+  display: flex;
+}
+
+.ms-modal__close:hover {
+  background: var(--bg-surface-muted);
+  color: var(--text-primary);
+}
+
+.ms-modal__body {
+  padding: 22px 24px;
+  overflow-y: auto;
+}
+
+.ms-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-app);
+}
+
+/* Toasts */
+.ms-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 360px;
+}
+
+.ms-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: #1e293b;
+  color: #f8fafc;
+  box-shadow: var(--shadow-lg);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.ms-toast--success {
+  border-left: 4px solid var(--color-secondary);
+}
+
+.ms-toast--error {
+  border-left: 4px solid var(--color-danger);
+}
+
+.ms-toast--info {
+  border-left: 4px solid var(--color-primary);
+}
+
+.ms-toast__close {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  display: flex;
+  padding: 2px;
+}
+

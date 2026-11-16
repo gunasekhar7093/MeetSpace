@@ -1,0 +1,641 @@
+/* Meeting Room Dark Studio */
+.ms-room-shell {
+  height: 100vh;
+  width: 100%;
+  background: var(--room-bg);
+  color: var(--room-text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ms-room-header {
+  height: 58px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--room-border);
+  flex-shrink: 0;
+}
+
+.ms-room-header__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ms-room-title {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-room-code-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--room-surface);
+  color: var(--room-text);
+  border: 1px solid var(--room-border);
+  border-radius: var(--radius-full);
+  padding: 4px 11px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.ms-room-code-btn:hover {
+  background: var(--room-surface-hover);
+}
+
+.ms-room-header__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ms-room-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.ms-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #34a853;
+}
+
+/* Main Stage + Side Panel */
+.ms-room-workspace {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  padding: 14px 16px;
+  gap: 14px;
+}
+
+.ms-room-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ms-screenshare-banner {
+  background: linear-gradient(135deg, #172554 0%, #1e3a8a 100%);
+  border: 1px solid #3b82f6;
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.ms-screenshare-stage-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ms-video-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  align-content: center;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Video Tile */
+.ms-video-tile {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: var(--room-surface);
+  border: 2px solid transparent;
+  overflow: hidden;
+  min-height: 195px;
+  height: 100%;
+  max-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition-fast);
+}
+
+.ms-video-tile--speaking {
+  border-color: #8ab4f8;
+  box-shadow: 0 0 0 1px rgba(138, 180, 248, 0.4);
+}
+
+.ms-video-tile--pinned {
+  grid-column: span 2;
+}
+
+.ms-video-tile__cam-sim {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ms-video-tile__cam-label {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.68);
+  background: rgba(0, 0, 0, 0.28);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+}
+
+.ms-video-tile__top-badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.ms-tile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 500;
+  pointer-events: auto;
+}
+
+.ms-tile-pill--hand {
+  background: #f29900;
+  color: #111827;
+  font-weight: 600;
+}
+
+.ms-tile-pill--screenshare {
+  background: #1d4ed8;
+  color: #ffffff;
+  font-weight: 600;
+  border: 1px solid #3b82f6;
+}
+
+.ms-screenshare-banner--remote {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border-color: #475569;
+}
+
+.ms-video-tile__footer {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ms-tile-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.58);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  max-width: 80%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ms-tile-mic-status {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.58);
+  color: #ffffff;
+}
+
+.ms-tile-mic-status--muted {
+  background: rgba(217, 48, 37, 0.9);
+}
+
+/* Side Drawer (Chat / Participants) */
+.ms-room-sidebar {
+  width: 350px;
+  background: var(--room-panel);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  flex-shrink: 0;
+}
+
+.ms-sidebar-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ms-sidebar-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.ms-sidebar-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ms-sidebar-tab--active {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.ms-sidebar-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Chat Panel */
+.ms-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ms-chat-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 90%;
+}
+
+.ms-chat-bubble--self {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.ms-chat-bubble__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.ms-chat-bubble__text {
+  background: var(--bg-surface-muted);
+  color: var(--text-primary);
+  padding: 9px 13px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.ms-chat-bubble--self .ms-chat-bubble__text {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+.ms-chat-form {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 8px;
+  background: var(--bg-app);
+}
+
+.ms-chat-input {
+  flex: 1;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  padding: 9px 14px;
+  font-size: 13.5px;
+  background: #ffffff;
+}
+
+.ms-chat-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* Participants Panel */
+.ms-participants-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ms-participant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+}
+
+.ms-participant-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ms-participant-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-participant-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ms-mini-icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--bg-surface-muted);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-mini-icon-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.ms-mini-icon-btn--danger:hover {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+/* Bottom Controls Bar */
+.ms-room-controls {
+  height: 76px;
+  padding: 0 20px;
+  border-top: 1px solid var(--room-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  background: #202124;
+}
+
+.ms-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ms-ctrl-btn {
+  position: relative;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--room-surface-hover);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color var(--transition-fast);
+}
+
+.ms-ctrl-btn:hover {
+  background: #4b4f54;
+}
+
+.ms-ctrl-btn--active {
+  background: #8ab4f8;
+  color: #202124;
+}
+
+.ms-ctrl-btn--active:hover {
+  background: #aecbfa;
+}
+
+.ms-ctrl-btn--danger {
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+.ms-ctrl-btn--danger:hover {
+  background: var(--color-danger-hover);
+}
+
+.ms-ctrl-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .ms-room-workspace {
+    position: relative;
+  }
+
+  .ms-room-sidebar {
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    bottom: 12px;
+    width: calc(100% - 24px);
+    max-width: 360px;
+    z-index: 30;
+  }
+
+  .ms-video-tile--pinned {
+    grid-column: span 1;
+  }
+
+  .ms-ctrl-label {
+    display: none;
+  }
+}
+
+@keyframes ms-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ms-spin {
+  animation: ms-spin 1s linear infinite;
+}
+
+/* Phase 8: Recording Styles */
+@keyframes ms-rec-pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ms-rec-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #7f1d1d;
+  color: #fecaca;
+  border: 1px solid #ef4444;
+  padding: 4px 11px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.ms-rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: ms-rec-pulse 1.4s ease-in-out infinite;
+}
+
+.ms-ctrl-btn--recording {
+  background: #7f1d1d !important;
+  color: #fecaca !important;
+  border-color: #ef4444 !important;
+}
+
+.ms-recording-banner {
+  background: linear-gradient(135deg, #450a0a 0%, #7f1d1d 100%);
+  border: 1px solid #ef4444;
+  border-radius: var(--radius-lg);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2);
+  flex-shrink: 0;
+}
+
+.ms-recording-banner__content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ms-recording-banner__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.ms-recordings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.ms-recording-item {
+  background: var(--bg-surface-elevated, #1e293b);
+  border: 1px solid var(--border-color, #334155);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ms-recording-item:hover {
+  background: var(--bg-surface-hover, #334155);
+}
+
+
+
