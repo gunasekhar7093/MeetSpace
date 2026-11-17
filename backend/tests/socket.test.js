@@ -880,4 +880,142 @@ describe('MeetSpace Socket.IO Real-Time Communication Tests', () => {
 
     client.disconnect();
   });
+
+  it('Scenario 21: Multi-socket hand-raising synchronization, presence preservation, and cleanup', async () => {
+    const meeting = await Meeting.create({
+      title: 'Hand Raise Multi-Socket Meeting',
+      meetingId: 'hnd-sc21-rm1',
+      host: hostUser._id,
+      participants: [
+        { user: hostUser._id, status: 'joined', joinedAt: new Date() },
+        { user: participantUser._id, status: 'joined', joinedAt: new Date() },
+      ],
+      status: 'active',
+      isInstant: true,
+    });
+
+    const hostClient = createClient(hostToken);
+    await waitForConnect(hostClient);
+    await new Promise((resolve) => {
+      hostClient.emit('meeting:join', { meetingId: meeting.meetingId }, resolve);
+    });
+
+    // 1. Bob joins through Socket 1
+    const bobSocket1 = createClient(participantToken);
+    await waitForConnect(bobSocket1);
+    const ack1 = await new Promise((resolve) => {
+      bobSocket1.emit('meeting:join', { meetingId: meeting.meetingId }, resolve);
+    });
+    assert.strictEqual(ack1.success, true);
+
+    // Initial hand-raise state should be false
+    let currentParticipants = presenceManager.getParticipants(meeting.meetingId);
+    let bobPresence = currentParticipants.find((p) => p.id === String(participantUser._id));
+    assert.strictEqual(bobPresence.isHandRaised, false);
+
+    // 2. Bob raises hand via Socket 1
+    const hostHandPromise = waitForEvent(hostClient, 'participant:hand-state');
+    const bob1HandPromise = waitForEvent(bobSocket1, 'participant:hand-state');
+
+    const raiseAck = await new Promise((resolve) => {
+      bobSocket1.emit(
+        'participant:hand-state',
+        { meetingId: meeting.meetingId, isHandRaised: true },
+        resolve
+      );
+    });
+    assert.strictEqual(raiseAck.success, true);
+    assert.strictEqual(raiseAck.isHandRaised, true);
+
+    // Host receives hand-state broadcast
+    const hostHandPayload = await hostHandPromise;
+    assert.strictEqual(hostHandPayload.meetingId, meeting.meetingId);
+    assert.strictEqual(hostHandPayload.userId, String(participantUser._id));
+    assert.strictEqual(hostHandPayload.isHandRaised, true);
+
+    // Bob Socket 1 receives hand-state broadcast
+    const bob1HandPayload = await bob1HandPromise;
+    assert.strictEqual(bob1HandPayload.isHandRaised, true);
+
+    // Presence confirms hand raised
+    currentParticipants = presenceManager.getParticipants(meeting.meetingId);
+    bobPresence = currentParticipants.find((p) => p.id === String(participantUser._id));
+    assert.strictEqual(bobPresence.isHandRaised, true);
+
+    // 3. Bob joins through second socket (Socket 2)
+    const bobSocket2 = createClient(participantToken);
+    await waitForConnect(bobSocket2);
+    const ack2 = await new Promise((resolve) => {
+      bobSocket2.emit('meeting:join', { meetingId: meeting.meetingId }, resolve);
+    });
+    assert.strictEqual(ack2.success, true);
+
+    // 4. Bob's existing raised-hand state remains true in ack.participants & presence
+    const bobInAck2 = ack2.participants.find((p) => p.id === String(participantUser._id));
+    assert.strictEqual(bobInAck2.isHandRaised, true, 'Existing hand-raise state must be preserved on new socket join');
+
+    currentParticipants = presenceManager.getParticipants(meeting.meetingId);
+    bobPresence = currentParticipants.find((p) => p.id === String(participantUser._id));
+    assert.strictEqual(bobPresence.isHandRaised, true);
+
+    // 5. Explicitly lowering hand via Socket 2 updates state to false and notifies both sockets & host
+    const hostLowerPromise = waitForEvent(hostClient, 'participant:hand-state');
+    const bob1LowerPromise = waitForEvent(bobSocket1, 'participant:hand-state');
+    const bob2LowerPromise = waitForEvent(bobSocket2, 'participant:hand-state');
+
+    const lowerAck = await new Promise((resolve) => {
+      bobSocket2.emit(
+        'participant:hand-state',
+        { meetingId: meeting.meetingId, isHandRaised: false },
+        resolve
+      );
+    });
+    assert.strictEqual(lowerAck.success, true);
+    assert.strictEqual(lowerAck.isHandRaised, false);
+
+    const hostLowerPayload = await hostLowerPromise;
+    assert.strictEqual(hostLowerPayload.isHandRaised, false);
+
+    const bob1LowerPayload = await bob1LowerPromise;
+    assert.strictEqual(bob1LowerPayload.isHandRaised, false);
+
+    const bob2LowerPayload = await bob2LowerPromise;
+    assert.strictEqual(bob2LowerPayload.isHandRaised, false);
+
+    currentParticipants = presenceManager.getParticipants(meeting.meetingId);
+    bobPresence = currentParticipants.find((p) => p.id === String(participantUser._id));
+    assert.strictEqual(bobPresence.isHandRaised, false);
+
+    // 6. Disconnecting one socket (Socket 1) does NOT erase the remaining socket's presence
+    let hostSawLeft = false;
+    hostClient.on('participant:left', () => {
+      hostSawLeft = true;
+    });
+
+    bobSocket1.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.strictEqual(hostSawLeft, false, 'Host must not see participant:left while Socket 2 is still active');
+
+    currentParticipants = presenceManager.getParticipants(meeting.meetingId);
+    assert.strictEqual(
+      currentParticipants.some((p) => p.id === String(participantUser._id)),
+      true,
+      'Presence must still retain user when another socket remains'
+    );
+
+    // 7. Disconnecting all sockets cleans up presence correctly
+    const leftPromise = waitForEvent(hostClient, 'participant:left');
+    bobSocket2.disconnect();
+    const leftPayload = await leftPromise;
+    assert.strictEqual(leftPayload.userId, String(participantUser._id));
+
+    currentParticipants = presenceManager.getParticipants(meeting.meetingId);
+    assert.strictEqual(
+      currentParticipants.some((p) => p.id === String(participantUser._id)),
+      false,
+      'Presence must be removed after all user sockets disconnect'
+    );
+
+    hostClient.disconnect();
+  });
 });

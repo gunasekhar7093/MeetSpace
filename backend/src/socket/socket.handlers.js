@@ -549,7 +549,42 @@ export function registerSocketHandlers(io, socket) {
     }
   });
 
-  // 10. Socket Disconnection Handling
+  // 10. Participant Hand Raise State (Raise / Lower Hand)
+  const handleHandState = async (payload = {}, callback) => {
+    try {
+      const meetingId = String(payload.meetingId || '').trim().toLowerCase();
+      if (!meetingId || socket.currentMeetingId !== meetingId) {
+        const errorMsg = 'You are not in this meeting room.';
+        if (typeof callback === 'function') callback({ success: false, message: errorMsg });
+        return;
+      }
+
+      const isHandRaised = typeof payload.isHandRaised === 'boolean'
+        ? payload.isHandRaised
+        : Boolean(payload.raised);
+
+      presenceManager.updateHandRaiseState(meetingId, socket.userId, isHandRaised);
+
+      const roomName = getMeetingRoomName(meetingId);
+      io.to(roomName).emit('participant:hand-state', {
+        meetingId,
+        userId: socket.userId,
+        userName: socket.user?.name || 'Participant',
+        isHandRaised,
+      });
+
+      if (typeof callback === 'function') {
+        callback({ success: true, isHandRaised });
+      }
+    } catch (err) {
+      if (typeof callback === 'function') callback({ success: false, message: err.message });
+    }
+  };
+
+  socket.on('participant:hand-state', handleHandState);
+  socket.on('participant:hand-raise', handleHandState);
+
+  // 11. Socket Disconnection Handling
   socket.on('disconnecting', async () => {
     await leaveCurrentMeeting();
   });

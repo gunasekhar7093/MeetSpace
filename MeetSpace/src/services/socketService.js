@@ -184,6 +184,23 @@ class SocketService {
     );
   }
 
+  sendHandState(meetingId, isHandRaised, onAck) {
+    if (!this.socket || !this.socket.connected) {
+      if (typeof onAck === 'function') {
+        onAck({ success: false, message: 'Real-time connection is not active.' });
+      }
+      return;
+    }
+    this.socket.emit(
+      'participant:hand-state',
+      {
+        meetingId: meetingId.trim().toLowerCase(),
+        isHandRaised: Boolean(isHandRaised),
+      },
+      onAck
+    );
+  }
+
   startScreenShare(meetingId, onAck) {
     if (!this.socket || !this.socket.connected) {
       if (typeof onAck === 'function') {

@@ -122,6 +122,7 @@ export class PresenceManager {
         isHost: Boolean(isHost),
         isMuted: typeof initialMedia?.isMuted === 'boolean' ? initialMedia.isMuted : false,
         isCameraOn: typeof initialMedia?.isCameraOn === 'boolean' ? initialMedia.isCameraOn : true,
+        isHandRaised: typeof initialMedia?.isHandRaised === 'boolean' ? initialMedia.isHandRaised : false,
         socketIds: new Set([socketId]),
         joinedAt: new Date().toISOString(),
       };
@@ -152,6 +153,7 @@ export class PresenceManager {
         isHost: userPresence.isHost,
         isMuted: userPresence.isMuted,
         isCameraOn: userPresence.isCameraOn,
+        isHandRaised: Boolean(userPresence.isHandRaised),
         isScreenSharing: this.getScreenSharer(mId) === userPresence.id,
         joinedAt: userPresence.joinedAt,
       },
@@ -175,6 +177,19 @@ export class PresenceManager {
       id: userPresence.id,
       isMuted: userPresence.isMuted,
       isCameraOn: userPresence.isCameraOn,
+    };
+  }
+
+  updateHandRaiseState(meetingId, userId, isHandRaised) {
+    const mId = String(meetingId).trim().toLowerCase();
+    const room = this.rooms.get(mId);
+    if (!room) return null;
+    const userPresence = room.get(String(userId));
+    if (!userPresence) return null;
+    userPresence.isHandRaised = Boolean(isHandRaised);
+    return {
+      id: userPresence.id,
+      isHandRaised: userPresence.isHandRaised,
     };
   }
 
@@ -246,6 +261,7 @@ export class PresenceManager {
       isHost: p.isHost,
       isMuted: p.isMuted ?? false,
       isCameraOn: p.isCameraOn ?? true,
+      isHandRaised: Boolean(p.isHandRaised),
       isScreenSharing: activeSharer === p.id,
       joinedAt: p.joinedAt,
     }));

@@ -98,6 +98,7 @@ export function MeetingRoomPage() {
   const initialMediaRef = useRef({
     isMuted: location.state?.initialMicOn === false,
     isCameraOn: location.state?.initialCameraOn ?? true,
+    isHandRaised: false,
   });
 
   // Real-time participant presence and chat messages via Socket.IO
@@ -376,6 +377,10 @@ export function MeetingRoomPage() {
               setIsScreenSharing(true);
             }
           }
+          const selfPart = ack.participants.find((p) => String(p.id) === String(user?.id));
+          if (selfPart && typeof selfPart.isHandRaised === 'boolean') {
+            setIsHandRaised(selfPart.isHandRaised);
+          }
         }
       }
     );
@@ -390,6 +395,10 @@ export function MeetingRoomPage() {
           if (String(sharer.id) === String(user?.id)) {
             setIsScreenSharing(true);
           }
+        }
+        const selfPart = payload.participants.find((p) => String(p.id) === String(user?.id));
+        if (selfPart && typeof selfPart.isHandRaised === 'boolean') {
+          setIsHandRaised(selfPart.isHandRaised);
         }
       }
     });
@@ -430,6 +439,27 @@ export function MeetingRoomPage() {
                 isCameraOn: typeof payload.isCameraOn === 'boolean' ? payload.isCameraOn : p.isCameraOn,
               }
             : p
+        )
+      );
+    });
+
+    const unsubHandState = socketService.on('participant:hand-state', (payload) => {
+      if (!payload?.meetingId) return;
+      const uId = String(payload.userId);
+      const raised = Boolean(payload.isHandRaised);
+
+      if (uId === String(user?.id)) {
+        setIsHandRaised(raised);
+      } else {
+        const participantName = payload.userName || 'A participant';
+        if (raised) {
+          showToast(`${participantName} raised their hand.`, 'info');
+        }
+      }
+
+      setRealParticipants((prev) =>
+        prev.map((p) =>
+          String(p.id) === uId ? { ...p, isHandRaised: raised } : p
         )
       );
     });
@@ -552,6 +582,7 @@ export function MeetingRoomPage() {
       unsubJoined?.();
       unsubLeft?.();
       unsubMediaState?.();
+      unsubHandState?.();
       unsubScreenState?.();
       unsubScreenError?.();
       unsubMessage?.();
@@ -657,6 +688,14 @@ export function MeetingRoomPage() {
     });
     socketService.sendMediaState(meetingId, { isMuted, isCameraOn: nextCamera });
     showToast(nextCamera ? 'Camera turned on.' : 'Camera turned off.', 'info');
+  };
+
+  const handleToggleHand = () => {
+    const nextHand = !isHandRaised;
+    setIsHandRaised(nextHand);
+    if (meetingId && socketService.isConnected()) {
+      socketService.sendHandState(meetingId, nextHand);
+    }
   };
 
   const handleToggleParticipantMute = (_id) => {
@@ -1122,7 +1161,7 @@ export function MeetingRoomPage() {
         onToggleMute={handleToggleMute}
         onToggleCamera={handleToggleCamera}
         onToggleScreenShare={handleToggleScreenShare}
-        onToggleHand={() => setIsHandRaised((prev) => !prev)}
+        onToggleHand={handleToggleHand}
         onToggleSidebar={handleToggleSidebar}
         onOpenInfo={() => setShowInfoModal(true)}
         onOpenHostControls={() => setShowHostModal(true)}
