@@ -98,6 +98,14 @@ export function createApp() {
   // 7. Mount API Routes
   app.use('/api', apiRoutes);
 
+  // Root health / status route
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      success: true,
+      message: 'MeetSpace server is running.',
+    });
+  });
+
   // 8. 404 & Centralized Error Handlers
   app.use(notFoundHandler);
   app.use(errorHandler);
